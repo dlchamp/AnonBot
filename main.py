@@ -68,42 +68,45 @@ async def on_message(msg):
                 message = msg.content.split(" ")
                 command = message[0]
                 user_msg = " ".join(message[2:])
-            # Get user mutual guilds, then find channel by name within those guilds
-            for g in msg.author.mutual_guilds:
-                try:
-                    log.info(f'Getting channels in {g.name} ')
-                    for c in g.channels:
-                        if c.name.lower() == message[1]:
-                            msg_channel = bot.get_channel(c.id)
-                            log.info('Found channel: {c.name}')
-                except:
-                    log.info(f'Cannot find a channel called {message[1]}')
-                    await msg.author.send(f"Sorry, I cannot find a channel called {message[1]}. Please check spelling and try again.  😊")
+                # Get user mutual guilds, then find channel by name within those guilds
+                for g in msg.author.mutual_guilds:
+                    try:
+                        log.info(f'Getting channels in {g.name} ')
+                        for c in g.channels:
+                            if c.name.lower() == message[1]:
+                                msg_channel = bot.get_channel(c.id)
+                                log.info(f'Found channel: {c.name}')
+                    except:
+                        log.info(f'Cannot find a channel called {message[1]}')
+                        await msg.author.send(f"Sorry, I cannot find a channel called {message[1]}. Please check spelling and try again.  😊")
+                        return
+                # Checking reaction to ensure it's in a DM and not originating from the bot
+                def r_check(reaction, user):
+                    if isinstance(reaction.message.channel, discord.DMChannel):
+                        return user == msg.author
+
+                log.info('Sending message preview to user DM - awaiting confirmation')
+                resp = await msg.author.send(
+                    f"Received your message. Here is a preview!\n\n**Channel**:\n{message[1].lower()}\n\n**Message**:\n{user_msg}\n\nPlease react with ✅ to send or ❌ to cancel"
+                )
+                await resp.add_reaction("✅")
+                await resp.add_reaction("❌")
+                reaction, user = await bot.wait_for("reaction_add", check=r_check)
+
+                if reaction.emoji == "✅":
+                    log.info(f'User confirmed message - sending to {msg_channel}')
+                    await msg.author.send(f"Your message has been anonymously sent to {msg_channel}")
+                    await msg_channel.send(user_msg)
+
                     return
-            # Checking reaction to ensure it's in a DM and not originating from the bot
-            def r_check(reaction, user):
-                if isinstance(reaction.message.channel, discord.DMChannel):
-                    return user == msg.author
-
-            log.info('Sending message preview to user DM - awaiting confirmation')
-            resp = await msg.author.send(
-                f"Received your message. Here is a preview!\n\n**Channel**:\n{message[1].lower()}\n\n**Message**:\n{user_msg}\n\nPlease react with ✅ to send or ❌ to cancel"
-            )
-            await resp.add_reaction("✅")
-            await resp.add_reaction("❌")
-            reaction, user = await bot.wait_for("reaction_add", check=r_check)
-
-            if reaction.emoji == "✅":
-                log.info(f'User confirmed message - sending to {msg_channel}')
-                await msg.author.send(f"Your message has been anonymously sent to {msg_channel}")
-                await msg_channel.send(user_msg)
-
-                return
-            elif reaction.emoji == "❌":
-                log.info('User cancelled message - sleeping.')
-                await msg.author.send(
-                    f"Your message has been cancelled.  You may try again if you wish")
-                return
+                elif reaction.emoji == "❌":
+                    log.info('User cancelled message - sleeping.')
+                    await msg.author.send(
+                        f"Your message has been cancelled.  You may try again if you wish")
+                    return
+            else:
+                await msg.author.send("Sorry, I don't understand.  Please format your message correctly\n(ex. `send channel-name your-message`")
+                log.info('Incorrectly formatted incoming message - directing user to try again')
     else:
         pass
 
