@@ -3,8 +3,6 @@ import discord
 import logging
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Basic logging config
 logging.basicConfig(format="%(message)s", level="INFO")
 log = logging.getLogger("root")
@@ -81,11 +79,13 @@ async def on_message(msg):
                         await msg.author.send(f"Sorry, I cannot find a channel called {message[1]}. Please check spelling and try again.  😊")
                         return
                 # Checking reaction to ensure it's in a DM and not originating from the bot
+
                 def r_check(reaction, user):
                     if isinstance(reaction.message.channel, discord.DMChannel):
                         return user == msg.author
 
-                log.info('Sending message preview to user DM - awaiting confirmation')
+                log.info(
+                    'Sending message preview to user DM - awaiting confirmation')
                 resp = await msg.author.send(
                     f"Received your message. Here is a preview!\n\n**Channel**:\n{message[1].lower()}\n\n**Message**:\n{user_msg}\n\nPlease react with ✅ to send or ❌ to cancel"
                 )
@@ -94,7 +94,8 @@ async def on_message(msg):
                 reaction, user = await bot.wait_for("reaction_add", check=r_check)
 
                 if reaction.emoji == "✅":
-                    log.info(f'User confirmed message - sending to {msg_channel}')
+                    log.info(
+                        f'User confirmed message - sending to {msg_channel}')
                     await msg.author.send(f"Your message has been anonymously sent to {msg_channel}")
                     await msg_channel.send(user_msg)
 
@@ -106,9 +107,11 @@ async def on_message(msg):
                     return
             else:
                 await msg.author.send("Sorry, I don't understand.  Please format your message correctly\n(ex. `send channel-name your-message`")
-                log.info('Incorrectly formatted incoming message - directing user to try again')
+                log.info(
+                    'Incorrectly formatted incoming message - directing user to try again')
     else:
         pass
 
 
+load_dotenv()
 bot.run(os.environ["TOKEN"])
