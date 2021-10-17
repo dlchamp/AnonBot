@@ -1,6 +1,7 @@
 import os
-import discord
+import nextcord
 import logging
+from nextcord.ext import commands
 from dotenv import load_dotenv
 
 # Basic logging config
@@ -8,18 +9,23 @@ logging.basicConfig(format="%(message)s", level="INFO")
 log = logging.getLogger("root")
 
 """
-Set discord intents - DO NOT CHANGE DISCORD INTENTS
+Set discord intents - DO NOT CHANGE INTENTS
 Initialize bot and configure presence activity
 """
-intents = discord.Intents.default()
+intents = nextcord.Intents.default()
 intents.dm_messages = True
 intents.dm_reactions = True
 intents.members = True
 intents.reactions = True
 
-bot = discord.Client(intents=intents)
-activity = discord.Activity(
-    type=discord.ActivityType.listening, name="for your DMs")
+## Configure Command Prefix ##
+# Must be a string surrounded by ""
+prefix = "!anon "
+
+bot = commands.Bot(command_prefix=prefix, help_command=None,
+                   case_insensitive=True, intents=intents)
+activity = nextcord.Activity(
+    type=nextcord.ActivityType.listening, name=f"{prefix}help")
 
 """
 Start bot listening events
@@ -28,7 +34,7 @@ Start bot listening events
 
 @bot.event
 async def on_ready():
-    await bot.change_presence(status=discord.Status.online, activity=activity)
+    await bot.change_presence(status=nextcord.Status.online, activity=activity)
     log.info("Bot is online and ready!")
 
 """
@@ -51,7 +57,7 @@ Finally, it lets the user confirm or cancel the message
 
 @bot.event
 async def on_message(msg):
-    if isinstance(msg.channel, discord.channel.DMChannel) and msg.author != bot.user:
+    if isinstance(msg.channel, nextcord.channel.DMChannel) and msg.author != bot.user:
         log.info(f"Received message in DM")
         message = msg.content.split(" ")
         log.info("Checking for mutual guilds")
@@ -81,7 +87,7 @@ async def on_message(msg):
                 # Checking reaction to ensure it's in a DM and not originating from the bot
 
                 def r_check(reaction, user):
-                    if isinstance(reaction.message.channel, discord.DMChannel):
+                    if isinstance(reaction.message.channel, nextcord.DMChannel):
                         return user == msg.author
 
                 log.info(
@@ -106,11 +112,26 @@ async def on_message(msg):
                         f"Your message has been cancelled.  You may try again if you wish")
                     return
             else:
-                await msg.author.send("Sorry, I don't understand.  Please format your message correctly\n(ex. `send channel-name your-message`")
+                await msg.author.send("Sorry, I don't understand.  Please format your message correctly\n(ex. `send channel-name your-message`)")
                 log.info(
                     'Incorrectly formatted incoming message - directing user to try again')
     else:
         pass
+
+    # Required to allow bot to process commands while also monitoring on_message events
+    await bot.process_commands(msg)
+
+
+## Help Command ##
+@bot.command(name="help")
+async def help_command(ctx):
+    # build embed
+    embed = nextcord.Embed(
+        title="Intro", description=f"{bot.user.name} allows you to send anonymous messages to a public channel. Even the logs are kept 100% anonymous.\n\nAll commands should be direct messaged to me. I will present a preview and wait for your confirmation before sending any messages to any channels.")
+    embed.add_field(name="Direct Message Commands:",
+                    value=f"**send (channel) (message)**\nSends an anonymous message to the specified channel.\n(*ex: send channel-name The juice is worth the squeeze.\n\n**{prefix}help**\n*(Can be used in any server channel)*\nDisplay this help message.")
+
+    await ctx.send(embed=embed)
 
 
 load_dotenv()
