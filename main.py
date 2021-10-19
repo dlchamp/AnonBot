@@ -140,9 +140,10 @@ async def help_command(ctx):
     embed = nextcord.Embed(
         title="Intro", description=f"{bot.user.name} allows you to send anonymous messages to a public channel. Even the logs are kept 100% anonymous.\n\nAll commands should be direct messaged to me. I will present a preview and wait for your confirmation before sending any messages to any channels.")
     embed.add_field(name="Direct Message Commands:",
-                    value=f"**send (channel) (message)**\nSends an anonymous message to the specified channel.\n(*ex: send channel-name The juice is worth the squeeze.\n\n**{prefix}help**\n*(Can be used in any server channel)*\nDisplay this help message.")
+                    value=f"**send channel-name message** or **send channel-id messsage**\nSends an anonymous message to the specified channel by name or ID.\n(*ex: send channel-name The juice is worth the squeeze.")
 
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, delete_after=20)
+    await ctx.message.delete()
 
 
 load_dotenv()
