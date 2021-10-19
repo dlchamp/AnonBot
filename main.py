@@ -1,6 +1,7 @@
 import os
 import nextcord
 import logging
+from buttons import Confirm
 from nextcord.ext import commands
 from dotenv import load_dotenv
 
@@ -59,64 +60,74 @@ Finally, it lets the user confirm or cancel the message
 async def on_message(msg):
     if isinstance(msg.channel, nextcord.channel.DMChannel) and msg.author != bot.user:
         log.info(f"Received message in DM")
-        message = msg.content.split(" ")
+        '''
+        Split message into sections, get command at index 0, channel name or id at index 1 and user's message at index 2:
+        '''
+        resp_message = msg.content.split(" ")
+        msg_command = resp_message[0].lower()
+        msg_channel = resp_message[1].lower()
+        user_msg = ' '.join(resp_message[2:])
+
         log.info("Checking for mutual guilds")
         if not msg.author.mutual_guilds:
             log.info('No mutual guilds found - sending DM to user')
             await msg.author.send("Sorry, we don't share a mutual discord server")
             pass
         else:
-            # Get message content and split into sections for gathering variable data
-            if msg.content.lower().startswith("send"):
-                log.info('Getting user message contents')
-                message = msg.content.split(" ")
-                command = message[0]
-                user_msg = " ".join(message[2:])
-                # Get user mutual guilds, then find channel by name within those guilds
-                for g in msg.author.mutual_guilds:
-                    try:
-                        log.info(f'Getting channels in {g.name} ')
-                        for c in g.channels:
-                            if c.name.lower() == message[1]:
-                                msg_channel = bot.get_channel(c.id)
-                                log.info(f'Found channel: {c.name}')
-                    except:
-                        log.info(f'Cannot find a channel called {message[1]}')
-                        await msg.author.send(f"Sorry, I cannot find a channel called {message[1]}. Please check spelling and try again.  😊")
-                        return
-                # Checking reaction to ensure it's in a DM and not originating from the bot
+            if msg_command == "send":
+                log.info('Getting channel from message')
+                if msg_channel.startswith(('0','1','2','3','4','5','6','7','8','9')):
+                    for guild in msg.author.mutual_guilds:
+                        channel = bot.get_channel(int(msg_channel))
+                        log.info(f'Found channel by ID')
+                        view = Confirm()
+                        embed = nextcord.Embed(title="Message Preview:", description=f'\n{user_msg}\n\nWould you like to send this message to {channel.name}?')
+                        await msg.author.send(embed=embed, view=view)
+                        await view.wait()
 
-                def r_check(reaction, user):
-                    if isinstance(reaction.message.channel, nextcord.DMChannel):
-                        return user == msg.author
+                        if view.value is None:
+                            return
+                        elif view.value:
+                            log.info(f'User message sent to channel: {channel.name}')
+                            await msg.author.send(f'Your message has been anonymously send to {channel.name}')
+                            await channel.send(user_msg)
+                        else:
+                            log.info('User cancelled anonymous message')
+                            await msg.author.send('Your message has been cancelled.')
 
-                log.info(
-                    'Sending message preview to user DM - awaiting confirmation')
-                resp = await msg.author.send(
-                    f"Received your message. Here is a preview!\n\n**Channel**:\n{message[1].lower()}\n\n**Message**:\n{user_msg}\n\nPlease react with ✅ to send or ❌ to cancel"
-                )
-                await resp.add_reaction("✅")
-                await resp.add_reaction("❌")
-                reaction, user = await bot.wait_for("reaction_add", check=r_check)
+                        if channel is None:
+                            log.info(f'No channel found with ID: {msg_channel}')
+                            await msg.author.send(f'Sorry. I could not find any channels with ID: {msg_channel}')
+                else:
+                    channel_dict = {}
+                    for guild in msg.author.mutual_guilds:
+                        for c in guild.channels:
+                            channel_dict[c.name] = c.id
 
-                if reaction.emoji == "✅":
-                    log.info(
-                        f'User confirmed message - sending to {msg_channel}')
-                    await msg.author.send(f"Your message has been anonymously sent to {msg_channel}")
-                    await msg_channel.send(user_msg)
+                    if not msg_channel in channel_dict:
+                        log.info(f"No channel found with name: {msg_channel}")
+                        await msg.author.send(f'Sorry. I could not find any channels named: {msg_channel}')
+                    else:
+                        channel = bot.get_channel(channel_dict[msg_channel])
+                        log.info('Found channel by name')
+                        view = Confirm()
+                        embed = nextcord.Embed(title="Message Preview:", description=f'\n{user_msg}\n\nWould you like to send this message to {channel.name}?')
+                        await msg.author.send(embed=embed, view=view)
+                        await view.wait()
 
-                    return
-                elif reaction.emoji == "❌":
-                    log.info('User cancelled message - sleeping.')
-                    await msg.author.send(
-                        f"Your message has been cancelled.  You may try again if you wish")
-                    return
-            else:
-                await msg.author.send("Sorry, I don't understand.  Please format your message correctly\n(ex. `send channel-name your-message`)")
-                log.info(
-                    'Incorrectly formatted incoming message - directing user to try again')
-    else:
-        pass
+                        if view.value is None:
+                            return
+                        elif view.value:
+                            log.info(f'User message sent to channel: {channel.name}')
+                            await msg.author.send(f'Your message has been anonymously send to {channel.name}')
+                            await channel.send(user_msg)
+                        else:
+                            log.info('User cancelled anonymous message')
+                            await msg.author.send('Your message has been cancelled.')
+
+                        if channel is None:
+                            log.info(f'No channel found with ID: {msg_channel}')
+                            await msg.author.send(f'Sorry. I could not find any channels with ID: {msg_channel}')
 
     # Required to allow bot to process commands while also monitoring on_message events
     await bot.process_commands(msg)
